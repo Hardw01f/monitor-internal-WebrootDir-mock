@@ -2,13 +2,22 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 )
+
+type Slack struct {
+	Text     string `json:"text"`
+	Username string `json:"username"`
+	Channel  string `json:"channel"`
+}
 
 func main() {
 	//Get current directory
@@ -59,20 +68,22 @@ func main() {
 			result = append(result, detectedfile)
 		}
 	}
-	//if there was even one result, send notification to Slack 
+	//if there was even one result, send notification to Slack
 	if len(result) >= 1 {
-		for num, notpermitedfile := range result {
+		for _, notpermitedfile := range result {
 			fullpathfile, err := filepath.Abs(notpermitedfile)
 			if err != nil {
 				log.Fatal(err)
 			}
 			//Add func to sending slack
-			fmt.Printf("%d : [ %s ] --  NOT PERMITED putting Web ROOT directory\n", num, fullpathfile)
+			message := fmt.Sprintf("[ALART]  [ %s ] --  NOT PERMITED putting under Web ROOT directory\n", fullpathfile)
+			fmt.Printf(message)
+			SendSlack(message)
 		}
 	}
 }
 
-// Scan directories and files from subordinate target directory 
+// Scan directories and files from subordinate target directory
 func DirExplore(path string) []string {
 	dirs, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -126,7 +137,7 @@ func CheckFileExsist(unknownfile string, whitelists []string) bool {
 	return true
 }
 
-// Create new whitelist using Direxplore function 
+// Create new whitelist using Direxplore function
 func CreateWhitelist(newfilename string, rundir string) {
 	newfile, err := os.Create(newfilename)
 	if err != nil {
@@ -139,4 +150,40 @@ func CreateWhitelist(newfilename string, rundir string) {
 		newfile.WriteString(NewComponent + "\n")
 	}
 
+}
+
+func GetToken() string {
+	slacktokens := os.Getenv("SLACKAPI")
+	fmt.Println(slacktokens)
+	return slacktokens
+}
+
+func SendSlack(message string) {
+	params := Slack{
+		Text:     message,
+		Username: "Webroot-monitor-alart",
+		Channel:  "mock-test",
+	}
+
+	jsonrize, err := json.Marshal(params)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	IncomingURL := GetToken()
+
+	response, err := http.PostForm(IncomingURL, url.Values{"payload": {string(jsonrize)}})
+	if err != nil {
+		fmt.Println("post error")
+		log.Fatal(err)
+	}
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer response.Body.Close()
+
+	fmt.Println(string(body))
 }
