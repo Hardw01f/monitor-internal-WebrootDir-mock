@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	pipeline "github.com/mattn/go-pipeline"
 )
 
 type Slack struct {
@@ -78,7 +79,9 @@ func main() {
 			//Add func to sending slack
 			message := fmt.Sprintf("[ALART]  [ %s ] --  NOT PERMITED putting under Web ROOT directory\n", fullpathfile)
 			fmt.Printf(message)
-			SendSlack(message)
+			//SendSlack(message)
+			Wall_Message(message)
+
 		}
 	}
 }
@@ -186,4 +189,14 @@ func SendSlack(message string) {
 	defer response.Body.Close()
 
 	fmt.Println(string(body))
+}
+
+func Wall_Message(mes string){
+		_, err := pipeline.Output(
+				[]string{"echo",mes},
+				[]string{"wall"},
+		)
+		if err != nil {
+				log.Fatal(err)
+		}
 }
